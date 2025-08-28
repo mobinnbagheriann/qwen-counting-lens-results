@@ -1,0 +1,166 @@
+<!doctype html>
+<meta charset="utf-8"/>
+<title>Overlay + Logit Lens</title>
+<style>
+  :root { --hl: 255,200,0; }
+  body {margin:0; font-family: system-ui, sans-serif;}
+  .row {display:flex; height: 100vh;}
+  .left {flex: 1 1 46%; padding: 12px; box-sizing: border-box; overflow:auto;}
+  .right{flex: 1 1 54%; border-left: 1px solid #ddd;}
+  .wrap {position: relative; display: inline-block; line-height: 0;}
+  img {display:block; max-width: 100%; height: auto;}
+  canvas#heat {position:absolute; top:0; left:0; pointer-events:none;}
+  #alpha { width: 240px; vertical-align: middle; }
+  #info { margin-left: 8px; }
+  iframe {width:100%; height:100%; border:0;}
+  .hint {font-size:12px; opacity:.8; margin-top:6px;}
+  .btn {margin-left:10px; font-size:12px; padding:3px 8px; cursor:pointer;}
+</style>
+<div class="row">
+  <div class="left">
+    <div>
+      <label>Heatmap opacity:
+        <input id="alpha" type="range" min="0" max="1" value="0.6" step="0.01">
+      </label>
+      <button id="clear" class="btn">Clear selection (Esc)</button>
+      <span id="info"></span>
+      <div class="hint">Hover = temporary highlight • Click = lock to a row</div>
+    </div>
+    <div class="wrap">
+      <img id="img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAGdElEQVR4nO3bQUhbdwDH8ZcQnXnWWDubUjZKl8UVdeoqLTrqQEoXKD2MHXYsO0lPMm+jR2VQ2GBl0kM3RmEwhI4x6NGLhzWjHmqpYplth91BUFMqbiYaZ+LbbYdKHs/ie2//9/t+jsn/8DvkGx8vz5jjOBagKh72ACBMBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpBABpibAHvKL5uc17d4uzDzafr1Y6u5Pdp+3cpWbbpmfsT8y4/wgrl3e/HFv++trKS6+fzNR/P5E509cYyioYyrAAqlXn49zTX6c2ah34ZbLtfC4V5CQYzbBrhu9uFFw+/ZZlXbn8bH29EtgemM6kAEql6tWRJfczzwuVb8cLwexBBJgUwMKjspdj96dLfi9BZJgUwO/zW16O3csX/V6CyDApACsW9gBEjkkBdHYlvRw728+dUHhlUgCnOjwF0D9wyO8liAyTArDt+PWbJ9zPHE0nrgyng9mDCDApAMuyPh1q/fCi2+9ct25nDreY+nwHgmdYAPF4bOJO9uro8b1v9fTa+dn2Dwabgl8Fcxn2KMR/niyUp/PFhzOlnR0nk214tyc5eCFVV8d9IuyPqQEAB8KwSyDgYBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApBEApCXCHoD9mftr8+6L4oP1zdXtSncqefqwfelYs53gi+wVxRzHCXsDPClXd8cWlq89WXnp9Uxj/cSZTN+RxlBWmY4AzFB1nNxvT6eeb9Q6MHmuLZdOBTkpGvjTaYYbiwWXT79lWZfvP1v/pxLYnsggAAOUKtWRuSX3M4XtyvhiIZg9UUIABni0UfZybHqt5PeS6CEAA8z/veXlWH6t6PeS6CEAA8TCHhBhBGCArlTSy7H+Fu6E7hsBGKCjyVMAA68f8ntJ9BCAAexE/OZ7J9zPpF9LDGfSweyJEgIww9DJ1ovH3H7nun0201LPgy37RgBmiMdid/qzo+3H977Ve9iePd8+eLQp+FURwKMQhlnYKOdfFGfWSzuOk21s6GlOXjiaqotzo+gVEQCkcQkEaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaQQAaYmwB5hh7o/Nuw+LDx5vrq5VurPJ0+/Yl8412w18fRgv5jhO2Bv+18rbu2O3lq/9sPLS65k36ifGMn2djaGswkEhADfVqpP77OnU/Y1aBya/acv1pYKchIPFH3E3N34uuHz6Lcu6PPpsfaMS2B4cOAKoqbRVHbm+5H6msFYZ/6kQzB74gQBqerRY9nJser7k9xL4hwBqml/c8nIsP1f0ewn8QwA1xWJhL4D/CKCmrreTXo71cyfUZARQU8dbngIY6Dnk9xL4hwBqshviNz8/4X4mfSQx/Ek6mD3wAwG4Gfqo9eL7br9z3f4i05LicRKDEYCbeDx256vs6NDxvW/1nrJnf2wf7G0KfhUOEI9CeLLwZzk/W5x5XNqpONk3G3rakhfOpuoS3CcyHgFAGpdAkEYAkEYAkEYAkEYAkEYAkEYAkEYAkEYAkEYAkEYAkPYvKjghFcMFEKkAAAAASUVORK5CYII=" />
+      <canvas id="heat"></canvas>
+    </div>
+  </div>
+  <div class="right">
+    <iframe id="lens" src="report_ll.html"></iframe>
+  </div>
+</div>
+<script>
+const DATA = {"attn_map": [[0.05354849550621134, 0.016904222111300788, 0.014900169932632669, 0.015518245716698317, 0.019096000652993775, 0.010009706972103351, 0.00718391775265742, 0.010208261810118685, 0.009670717420794365], [0.01717851161824608, 0.010082425297921997, 0.009700291451529409, 0.01684061934490645, 0.004209606665763699, 0.004834536454702813, 0.004840533533271435, 0.014199437539107936, 0.012545271790916693], [0.012077704875096454, 0.005486059070397897, 0.006499256592653068, 0.0113007233757458, 0.00420768760062174, 0.0037900508148420286, 0.004680428402272704, 0.010597352267650875, 0.00533890762910739], [0.04594982214235685, 0.01264040232379851, 0.005084357412566364, 0.014133606483207942, 0.0026063645480117925, 0.0041102603740568455, 0.006113216211799138, 0.012535470315631101, 0.0029375403276154497], [0.0059634607265489125, 0.005903866632360285, 0.0012811815461812317, 0.004630087144384992, 0.007195500547686597, 0.005019794645079281, 0.003546638063394284, 0.005884265087354392, 0.0025587992815708834], [0.0130926851226605, 0.006773648705864495, 0.008120798701952772, 0.009066314975865176, 0.0122756768720384, 0.008736407250413547, 0.006429896162311087, 0.007898700645337965, 0.005177535146739275], [0.004680291593917857, 0.003044048442994175, 0.005710932181415981, 0.008536789805039335, 0.024132827001207943, 0.025081015723257487, 0.014387985689305409, 0.014272019056571736, 0.008144135770976448], [0.007690756162666869, 0.013380989989629367, 0.017670888635513412, 0.018921639341785198, 0.008206162430159472, 0.011484748416841595, 0.03830789859750027, 0.07893444018563862, 0.014698085251653585], [0.016608479929863303, 0.008265893332702947, 0.02169407189727563, 0.030530680960135587, 0.018110834319307517, 0.01806710812019405, 0.004020201589261381, 0.022709257357371948, 0.0015923786207596412]], "grid_hw": [9, 9]};                  // {attn_map, grid_hw}
+const ATT  = DATA.attn_map;
+const GRID = DATA.grid_hw;              // [H, W], row-major
+
+const alphaInput = document.getElementById('alpha');
+const img  = document.getElementById('img');
+const heat = document.getElementById('heat');
+const info = document.getElementById('info');
+const lens = document.getElementById('lens');
+const clearBtn = document.getElementById('clear');
+
+let selectedIdx = null;   // click-to-lock selection (null = none)
+
+function drawOverlay() {
+  if (!img.naturalWidth || !img.naturalHeight) return;
+  const H = GRID[0], W = GRID[1];
+  const w = img.clientWidth, h = img.clientHeight;
+  heat.width = w; heat.height = h;
+
+  const ctx = heat.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  ctx.globalAlpha = parseFloat(alphaInput.value || "0.6");
+  const cellW = w / W, cellH = h / H;
+
+  let maxv = 0; for (let r=0;r<H;r++) for (let c=0;c<W;c++) if (ATT[r][c]>maxv) maxv = ATT[r][c];
+  if (maxv <= 0) maxv = 1;
+
+  for (let r=0; r<H; r++) for (let c=0; c<W; c++) {
+    const v = ATT[r][c] / maxv;
+    const x = Math.round(c*cellW), y = Math.round(r*cellH);
+    const cw = Math.ceil(cellW),   ch = Math.ceil(cellH);
+    ctx.fillStyle = `rgba(255, 0, 0, ${v})`;
+    ctx.fillRect(x, y, cw, ch);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function rcToIndex(r,c){ return r*GRID[1] + c; }
+
+// ----- highlight inside the iframe -----
+function ensureIframeStyles(doc) {
+  if (doc.getElementById('_hl_style')) return;
+  const st = doc.createElement('style');
+  st.id = '_hl_style';
+  st.textContent = `
+    /* keep rows visible but hide preview images in the lens pane */
+    img { display: none !important; }
+    ._patch-highlight { outline: 3px solid rgb(255,200,0); background: rgba(255,200,0,.15) !important; }
+    tr._patch-highlight > td { background: rgba(255,200,0,.15) !important; }
+  `;
+  doc.head.appendChild(st);
+}
+
+function clearHighlight(doc) {
+  if (!doc) return;
+  doc.querySelectorAll('._patch-highlight').forEach(el => el.classList.remove('_patch-highlight'));
+}
+
+function highlightRow(idx) {
+  const doc = lens.contentDocument;
+  if (!doc) return;
+  ensureIframeStyles(doc);
+  clearHighlight(doc);
+
+  // 1) data attribute exact match (0- or 1-based)
+  let row = doc.querySelector(`[data-patch-index="${idx}"]`) ||
+            doc.querySelector(`[data-patch-index="${idx+1}"]`);
+
+  // 2) fallback: first column equals idx (or idx+1)
+  if (!row) {
+    const tables = Array.from(doc.querySelectorAll('table'));
+    for (const tb of tables) {
+      for (const tr of Array.from(tb.querySelectorAll('tr'))) {
+        const first = tr.querySelector('td,th');
+        if (!first) continue;
+        const t = (first.textContent || '').trim();
+        if (t === String(idx) || t === String(idx+1)) { row = tr; break; }
+      }
+      if (row) break;
+    }
+  }
+
+  if (!row) return;
+  row.classList.add('_patch-highlight');
+  if (row.scrollIntoView) row.scrollIntoView({block:'center', inline:'nearest', behavior:'smooth'});
+}
+
+// events
+alphaInput.addEventListener('input', drawOverlay);
+window.addEventListener('resize', drawOverlay);
+img.addEventListener('load', drawOverlay);
+
+// hover = temporary (unless a selection exists)
+img.addEventListener('mousemove', ev => {
+  const rect = img.getBoundingClientRect();
+  const H = GRID[0], W = GRID[1];
+  const r = Math.min(H-1, Math.max(0, Math.floor((ev.clientY - rect.top) / (img.clientHeight / H))));
+  const c = Math.min(W-1, Math.max(0, Math.floor((ev.clientX - rect.left) / (img.clientWidth  / W))));
+  const w = ATT[r][c];
+  info.textContent = `r=${r+1}, c=${c+1}, weight=${w.toFixed(4)}`;
+  if (selectedIdx === null) highlightRow(rcToIndex(r,c));
+});
+
+// click = lock
+img.addEventListener('click', ev => {
+  const rect = img.getBoundingClientRect();
+  const H = GRID[0], W = GRID[1];
+  const r = Math.min(H-1, Math.max(0, Math.floor((ev.clientY - rect.top) / (img.clientHeight / H))));
+  const c = Math.min(W-1, Math.max(0, Math.floor((ev.clientX - rect.left) / (img.clientWidth  / W))));
+  selectedIdx = rcToIndex(r,c);
+  highlightRow(selectedIdx);
+});
+
+// optional: clear selection
+function clearSelection(){
+  selectedIdx = null;
+  // refresh current hover highlight (or none)
+  clearHighlight(lens.contentDocument);
+}
+clearBtn.addEventListener('click', clearSelection);
+window.addEventListener('keydown', e => { if (e.key === 'Escape') clearSelection(); });
+
+// re-apply highlight after iframe loads (so the lock persists on reload)
+lens.addEventListener('load', () => {
+  drawOverlay();
+  if (selectedIdx !== null) highlightRow(selectedIdx);
+});
+</script>

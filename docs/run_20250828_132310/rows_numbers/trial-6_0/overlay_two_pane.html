@@ -1,0 +1,166 @@
+<!doctype html>
+<meta charset="utf-8"/>
+<title>Overlay + Logit Lens</title>
+<style>
+  :root { --hl: 255,200,0; }
+  body {margin:0; font-family: system-ui, sans-serif;}
+  .row {display:flex; height: 100vh;}
+  .left {flex: 1 1 46%; padding: 12px; box-sizing: border-box; overflow:auto;}
+  .right{flex: 1 1 54%; border-left: 1px solid #ddd;}
+  .wrap {position: relative; display: inline-block; line-height: 0;}
+  img {display:block; max-width: 100%; height: auto;}
+  canvas#heat {position:absolute; top:0; left:0; pointer-events:none;}
+  #alpha { width: 240px; vertical-align: middle; }
+  #info { margin-left: 8px; }
+  iframe {width:100%; height:100%; border:0;}
+  .hint {font-size:12px; opacity:.8; margin-top:6px;}
+  .btn {margin-left:10px; font-size:12px; padding:3px 8px; cursor:pointer;}
+</style>
+<div class="row">
+  <div class="left">
+    <div>
+      <label>Heatmap opacity:
+        <input id="alpha" type="range" min="0" max="1" value="0.6" step="0.01">
+      </label>
+      <button id="clear" class="btn">Clear selection (Esc)</button>
+      <span id="info"></span>
+      <div class="hint">Hover = temporary highlight • Click = lock to a row</div>
+    </div>
+    <div class="wrap">
+      <img id="img" src="data:image/png;base64,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" />
+      <canvas id="heat"></canvas>
+    </div>
+  </div>
+  <div class="right">
+    <iframe id="lens" src="report_ll.html"></iframe>
+  </div>
+</div>
+<script>
+const DATA = {"attn_map": [[0.034993366578953154, 0.015729614003571167, 0.011275012351859173, 0.024034844218784643, 0.03272459765953842, 0.007569798390887186, 0.004249400328150713, 0.01057563492157665, 0.004054266647166102], [0.04830418038483952, 0.02349338283812635, 0.014273798402289992, 0.02426606657974845, 0.004512098171636443, 0.009211225624157526, 0.0035663777859669295, 0.0132028707493985, 0.006946816981314052], [0.016548819287496134, 0.0077276428872548614, 0.004615316725601285, 0.007389057349319845, 0.007084744827478966, 0.008058414213297043, 0.0019340004247334229, 0.005197482965081738, 0.0034265242130952444], [0.02711111548949684, 0.0076259870762890635, 0.004660565713112239, 0.020972382726587368, 0.004625820147386275, 0.00467881079973828, 0.008801986711249193, 0.009303758891810303, 0.0069098547553277595], [0.010901499383671118, 0.004467649189285572, 0.010990108153960954, 0.014517160965782462, 0.007431544082989245, 0.005017432611199189, 0.003249817234814942, 0.005018413983988732, 0.006293451773279059], [0.03247149391520231, 0.008848906765439252, 0.006410444826028162, 0.011433728406643485, 0.004423017845510011, 0.019041943442835947, 0.008255873872017275, 0.00598997503322654, 0.006452204598486878], [0.018691074098961546, 0.00631874783706136, 0.01539647992936986, 0.007890975120882137, 0.007800295281333154, 0.01931201922210858, 0.006029626966002603, 0.017899381042181597, 0.009951490771584514], [0.05972653281748615, 0.016241562647286625, 0.01064163683797634, 0.009807493817950498, 0.007660950283170379, 0.01745735881222877, 0.01203533924359249, 0.016599120233058366, 0.010435745323627881], [0.019197170282568024, 0.005745631096944527, 0.005879379040372412, 0.009509250900476336, 0.00593614909598379, 0.010717269623949153, 0.0230683346307005, 0.0143493944178393, 0.014831286718621155]], "grid_hw": [9, 9]};                  // {attn_map, grid_hw}
+const ATT  = DATA.attn_map;
+const GRID = DATA.grid_hw;              // [H, W], row-major
+
+const alphaInput = document.getElementById('alpha');
+const img  = document.getElementById('img');
+const heat = document.getElementById('heat');
+const info = document.getElementById('info');
+const lens = document.getElementById('lens');
+const clearBtn = document.getElementById('clear');
+
+let selectedIdx = null;   // click-to-lock selection (null = none)
+
+function drawOverlay() {
+  if (!img.naturalWidth || !img.naturalHeight) return;
+  const H = GRID[0], W = GRID[1];
+  const w = img.clientWidth, h = img.clientHeight;
+  heat.width = w; heat.height = h;
+
+  const ctx = heat.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  ctx.globalAlpha = parseFloat(alphaInput.value || "0.6");
+  const cellW = w / W, cellH = h / H;
+
+  let maxv = 0; for (let r=0;r<H;r++) for (let c=0;c<W;c++) if (ATT[r][c]>maxv) maxv = ATT[r][c];
+  if (maxv <= 0) maxv = 1;
+
+  for (let r=0; r<H; r++) for (let c=0; c<W; c++) {
+    const v = ATT[r][c] / maxv;
+    const x = Math.round(c*cellW), y = Math.round(r*cellH);
+    const cw = Math.ceil(cellW),   ch = Math.ceil(cellH);
+    ctx.fillStyle = `rgba(255, 0, 0, ${v})`;
+    ctx.fillRect(x, y, cw, ch);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function rcToIndex(r,c){ return r*GRID[1] + c; }
+
+// ----- highlight inside the iframe -----
+function ensureIframeStyles(doc) {
+  if (doc.getElementById('_hl_style')) return;
+  const st = doc.createElement('style');
+  st.id = '_hl_style';
+  st.textContent = `
+    /* keep rows visible but hide preview images in the lens pane */
+    img { display: none !important; }
+    ._patch-highlight { outline: 3px solid rgb(255,200,0); background: rgba(255,200,0,.15) !important; }
+    tr._patch-highlight > td { background: rgba(255,200,0,.15) !important; }
+  `;
+  doc.head.appendChild(st);
+}
+
+function clearHighlight(doc) {
+  if (!doc) return;
+  doc.querySelectorAll('._patch-highlight').forEach(el => el.classList.remove('_patch-highlight'));
+}
+
+function highlightRow(idx) {
+  const doc = lens.contentDocument;
+  if (!doc) return;
+  ensureIframeStyles(doc);
+  clearHighlight(doc);
+
+  // 1) data attribute exact match (0- or 1-based)
+  let row = doc.querySelector(`[data-patch-index="${idx}"]`) ||
+            doc.querySelector(`[data-patch-index="${idx+1}"]`);
+
+  // 2) fallback: first column equals idx (or idx+1)
+  if (!row) {
+    const tables = Array.from(doc.querySelectorAll('table'));
+    for (const tb of tables) {
+      for (const tr of Array.from(tb.querySelectorAll('tr'))) {
+        const first = tr.querySelector('td,th');
+        if (!first) continue;
+        const t = (first.textContent || '').trim();
+        if (t === String(idx) || t === String(idx+1)) { row = tr; break; }
+      }
+      if (row) break;
+    }
+  }
+
+  if (!row) return;
+  row.classList.add('_patch-highlight');
+  if (row.scrollIntoView) row.scrollIntoView({block:'center', inline:'nearest', behavior:'smooth'});
+}
+
+// events
+alphaInput.addEventListener('input', drawOverlay);
+window.addEventListener('resize', drawOverlay);
+img.addEventListener('load', drawOverlay);
+
+// hover = temporary (unless a selection exists)
+img.addEventListener('mousemove', ev => {
+  const rect = img.getBoundingClientRect();
+  const H = GRID[0], W = GRID[1];
+  const r = Math.min(H-1, Math.max(0, Math.floor((ev.clientY - rect.top) / (img.clientHeight / H))));
+  const c = Math.min(W-1, Math.max(0, Math.floor((ev.clientX - rect.left) / (img.clientWidth  / W))));
+  const w = ATT[r][c];
+  info.textContent = `r=${r+1}, c=${c+1}, weight=${w.toFixed(4)}`;
+  if (selectedIdx === null) highlightRow(rcToIndex(r,c));
+});
+
+// click = lock
+img.addEventListener('click', ev => {
+  const rect = img.getBoundingClientRect();
+  const H = GRID[0], W = GRID[1];
+  const r = Math.min(H-1, Math.max(0, Math.floor((ev.clientY - rect.top) / (img.clientHeight / H))));
+  const c = Math.min(W-1, Math.max(0, Math.floor((ev.clientX - rect.left) / (img.clientWidth  / W))));
+  selectedIdx = rcToIndex(r,c);
+  highlightRow(selectedIdx);
+});
+
+// optional: clear selection
+function clearSelection(){
+  selectedIdx = null;
+  // refresh current hover highlight (or none)
+  clearHighlight(lens.contentDocument);
+}
+clearBtn.addEventListener('click', clearSelection);
+window.addEventListener('keydown', e => { if (e.key === 'Escape') clearSelection(); });
+
+// re-apply highlight after iframe loads (so the lock persists on reload)
+lens.addEventListener('load', () => {
+  drawOverlay();
+  if (selectedIdx !== null) highlightRow(selectedIdx);
+});
+</script>
